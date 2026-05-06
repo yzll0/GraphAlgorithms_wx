@@ -1,0 +1,10 @@
+{
+  "files.autoSave": "afterDelay",
+  "lean4.envPathExtensions": [
+    "/Users/yzll/GraphAlgorithms_wx/.bin",
+    "/Users/yzll/.elan/bin"
+  ],
+  "terminal.integrated.env.osx": {
+    "PATH": "/Users/yzll/GraphAlgorithms_wx/.bin:/Users/yzll/.elan/bin:${env:PATH}"
+  }
+}
