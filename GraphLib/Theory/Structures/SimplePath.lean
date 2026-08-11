@@ -238,6 +238,13 @@ attribute [simp, grind] SimplePath.reverse SimplePath.dropTail SimplePath.dropHe
 @[simp] lemma length_edges (p : SimplePath α) : (edges p).length = length p :=
   VertexSeq.length_edges (vertices p)
 
+/-- The edges of an append are those of the operands plus the joining edge. -/
+lemma edges_append (p q : SimplePath α)
+    (hdisj : ∀ v : α, v ∈ vertices p → v ∈ vertices q → False) :
+    edges (append p q hdisj) =
+      edges p ++ [s(tail p, head q)] ++ edges q :=
+  VertexSeq.edges_append (vertices p) (vertices q)
+
 /-- A path traverses each edge at most once (a path is a trail). -/
 lemma edges_nodup (p : SimplePath α) : (edges p).Nodup :=
   VertexSeq.edges_nodup (vertices p) (nodup p)

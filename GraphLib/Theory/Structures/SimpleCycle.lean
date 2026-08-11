@@ -23,7 +23,6 @@ API here only reflects a chosen traversal orientation and is not canonical.
 * `SimpleCycle.interior` — the simple path obtained by dropping the repeated endpoint.
 * `SimpleCycle.reverse`, `SimpleCycle.reroot` — change the chosen traversal or root.
 * `SimpleCycle.ofPathClosing` — close one path to form a cycle.
-* `SimpleCycle.ofInternallyDisjointPaths` — form a cycle from internally disjoint paths.
 * `SimpleCycle.ofTwoPaths` — select a cycle from two distinct paths with common endpoints.
 
 ## Main results
@@ -136,121 +135,33 @@ def ofPathClosing (p : SimplePath α)
     SimpleCycle α :=
   ⟨walkOfPathClosing p hlen, isCycle_ofPathClosing p hlen⟩
 
-/-! ### ofInternallyDisjointPaths -/
+/-- Closing a path adds exactly one edge. -/
+@[simp] lemma length_ofPathClosing (p : SimplePath α)
+    (hlen : 2 ≤ p.length) :
+    (ofPathClosing p hlen).length = p.length + 1 := by
+  change 1 + p.length = p.length + 1
+  omega
+
+/-- Closing a path preserves its head. -/
+@[simp] lemma head_ofPathClosing (p : SimplePath α)
+    (hlen : 2 ≤ p.length) :
+    (ofPathClosing p hlen).head = p.head := by
+  rfl
+
+/-- The edges of a closed path are the path edges followed by its closing edge. -/
+lemma edges_ofPathClosing (p : SimplePath α)
+    (hlen : 2 ≤ p.length) :
+    (ofPathClosing p hlen).edges =
+      p.edges ++ [s(p.tail, p.head)] := by
+  simp [ofPathClosing, walkOfPathClosing, VertexSeq.edges_cons,
+    List.concat_eq_append]
+
+/-! ### ofTwoPaths -/
 
 /-- Two paths with the same tail can be glued after reversing the second one. -/
 private lemma tail_eq_head_reverse_of_tail_eq (P Q : SimplePath α)
     (htail : P.tail = Q.tail) : P.val.tail = Q.val.reverse.head := by
   simpa using htail
-
-/-- The walk obtained by following two internally disjoint paths in opposite
-directions is a simple cycle. -/
-private lemma isCycle_ofInternallyDisjointPaths (P Q : SimplePath α)
-    (hhead : P.head = Q.head) (htail : P.tail = Q.tail)
-    (hab : P.head ≠ P.tail)
-    (hint : ∀ z, z ∈ P.vertices → z ∈ Q.vertices →
-      z = P.head ∨ z = P.tail)
-    (hlen : 3 ≤ P.length + Q.length) :
-    SimpleWalk.IsCycle
-      (SimpleWalk.glue P.val Q.val.reverse
-        (tail_eq_head_reverse_of_tail_eq P Q htail)) := by
-  have hPpos : P.vertices.length ≠ 0 := fun h0 =>
-    hab (VertexSeq.head_eq_tail_of_length_zero P.vertices h0)
-  have hQpos : Q.vertices.length ≠ 0 := fun h0 =>
-    hab (hhead.trans ((VertexSeq.head_eq_tail_of_length_zero Q.vertices h0).trans htail.symm))
-  have hQrevPos : Q.vertices.reverse.length ≠ 0 := by simpa using hQpos
-  have hQrevNodup := VertexSeq.nodup_reverse Q.vertices Q.nodup
-  have hdisj : ∀ z : α, z ∈ P.vertices.dropTail →
-      z ∈ Q.vertices.reverse.dropTail → False := by
-    intro z hzP hzQ
-    have hzP2 := VertexSeq.dropTail_subset P.vertices z hzP
-    have hzQ2 : z ∈ Q.vertices :=
-      VertexSeq.mem_reverse.1
-        (VertexSeq.dropTail_subset Q.vertices.reverse z hzQ)
-    have hPt := VertexSeq.tail_not_mem_dropTail_of_nodup P.vertices P.nodup hPpos
-    have hQt := VertexSeq.tail_not_mem_dropTail_of_nodup Q.vertices.reverse
-      hQrevNodup hQrevPos
-    have hQrt : Q.vertices.reverse.tail = Q.head := VertexSeq.tail_reverse Q.vertices
-    grind [hint z hzP2 hzQ2]
-  unfold SimpleWalk.glue
-  rw [dif_neg hPpos]
-  refine ⟨?_, ?_, ?_⟩
-  · change 3 ≤ (P.vertices.dropTail.append Q.vertices.reverse).length
-    have := VertexSeq.length_dropTail_succ P.vertices hPpos
-    change 3 ≤ P.vertices.length + Q.vertices.length at hlen
-    rw [VertexSeq.length_append, VertexSeq.length_reverse]
-    omega
-  · change (P.vertices.dropTail.append Q.vertices.reverse).closed
-    simp [VertexSeq.closed, hhead]
-  · change (P.vertices.dropTail.append Q.vertices.reverse).dropTail.nodup
-    rw [VertexSeq.dropTail_append P.vertices.dropTail Q.vertices.reverse hQrevPos]
-    exact VertexSeq.nodup_append _ _ (VertexSeq.nodup_dropTail P.vertices P.nodup)
-      (VertexSeq.nodup_dropTail _ hQrevNodup) hdisj
-
-/-- Construct a simple cycle by following one internally disjoint path and
-returning along the reverse of the other. -/
-def ofInternallyDisjointPaths (P Q : SimplePath α)
-    (hhead : P.head = Q.head) (htail : P.tail = Q.tail)
-    (hab : P.head ≠ P.tail)
-    (hint : ∀ z, z ∈ P.vertices → z ∈ Q.vertices →
-      z = P.head ∨ z = P.tail)
-    (hlen : 3 ≤ P.length + Q.length) : SimpleCycle α :=
-  ⟨SimpleWalk.glue P.val Q.val.reverse
-      (tail_eq_head_reverse_of_tail_eq P Q htail),
-    isCycle_ofInternallyDisjointPaths P Q hhead htail hab hint hlen⟩
-
-/-- The length of the cycle obtained from two internally disjoint paths is the
-sum of the two path lengths. -/
-@[simp] lemma length_ofInternallyDisjointPaths (P Q : SimplePath α)
-    (hhead : P.head = Q.head) (htail : P.tail = Q.tail)
-    (hab : P.head ≠ P.tail)
-    (hint : ∀ z, z ∈ P.vertices → z ∈ Q.vertices →
-      z = P.head ∨ z = P.tail)
-    (hlen : 3 ≤ P.length + Q.length) :
-    (ofInternallyDisjointPaths P Q hhead htail hab hint hlen).length =
-      P.length + Q.length := by
-  have hPpos : P.vertices.length ≠ 0 := fun h0 =>
-    hab (VertexSeq.head_eq_tail_of_length_zero P.vertices h0)
-  unfold ofInternallyDisjointPaths SimpleWalk.glue
-  grind [VertexSeq.length_append, VertexSeq.length_reverse,
-    VertexSeq.length_dropTail_succ]
-
-/-- The cycle from two internally disjoint paths is rooted at the head they
-share: the traversal starts along `P`. -/
-@[simp] lemma head_ofInternallyDisjointPaths (P Q : SimplePath α)
-    (hhead : P.head = Q.head) (htail : P.tail = Q.tail)
-    (hab : P.head ≠ P.tail)
-    (hint : ∀ z, z ∈ P.vertices → z ∈ Q.vertices →
-      z = P.head ∨ z = P.tail)
-    (hlen : 3 ≤ P.length + Q.length) :
-    (ofInternallyDisjointPaths P Q hhead htail hab hint hlen).head = P.head := by
-  have hPpos : P.length ≠ 0 := fun h0 =>
-    hab (VertexSeq.head_eq_tail_of_length_zero P.vertices h0)
-  change (P.val.glue Q.val.reverse
-    (tail_eq_head_reverse_of_tail_eq P Q htail)).head = P.head
-  unfold SimpleWalk.glue
-  rw [dif_neg hPpos]
-  change (P.vertices.dropTail.append Q.vertices.reverse).head = P.vertices.head
-  rw [VertexSeq.head_append, VertexSeq.head_dropTail]
-
-/-- Every edge of the cycle from two internally disjoint paths is traversed by
-one of them: the return leg only reverses `Q`, which leaves its edge set alone. -/
-lemma edges_ofInternallyDisjointPaths_subset (P Q : SimplePath α)
-    (hhead : P.head = Q.head) (htail : P.tail = Q.tail)
-    (hab : P.head ≠ P.tail)
-    (hint : ∀ z, z ∈ P.vertices → z ∈ Q.vertices →
-      z = P.head ∨ z = P.tail)
-    (hlen : 3 ≤ P.length + Q.length) {e : Sym2 α}
-    (he : e ∈ (ofInternallyDisjointPaths P Q hhead htail hab hint hlen).edges) :
-    e ∈ P.edges ∨ e ∈ Q.edges := by
-  change e ∈ (P.val.glue Q.val.reverse
-    (tail_eq_head_reverse_of_tail_eq P Q htail)).edges at he
-  rw [SimpleWalk.edges_glue, List.mem_append] at he
-  rcases he with heP | heQ
-  · exact Or.inl heP
-  · exact Or.inr (by grind [VertexSeq.edges_reverse])
-
-/-! ### ofTwoPaths -/
 
 /-- The vertex where two paths with a common head diverge: the last vertex of the
 longest common prefix of their vertex lists.
@@ -358,160 +269,311 @@ private lemma divergenceVertex_mem_right [DecidableEq α] (p q : SimplePath α)
     divergenceVertex p q hhead ∈ q.vertices :=
   (divergenceVertex_core p q hhead htail hne).2.1
 
-private def firstRejoinVertex [DecidableEq α] (a : α) (p q : SimplePath α)
-    (hwit : ∃ z ∈ p.vertices.toList, ¬(z = a ∨ z ∉ q.vertices)) : α :=
-  (p.vertices.dropWhile (fun z => z = a ∨ z ∉ q.vertices) hwit).head
+/-! #### Divergence context -/
 
-private lemma firstRejoinVertex_spec [DecidableEq α] (a : α) (p q : SimplePath α)
-    (hpa : p.head = a) (hqa : q.head = a)
-    (hsecond : p.vertices.dropHead.head ≠ q.vertices.dropHead.head)
-    (hwit : ∃ z ∈ p.vertices.toList, ¬(z = a ∨ z ∉ q.vertices)) :
-    let b := firstRejoinVertex a p q hwit
-    ∃ hbP : b ∈ p.vertices, ∃ hbQ : b ∈ q.vertices,
-      let P := p.prefixUntil b hbP
-      let Q := q.prefixUntil b hbQ
-      P.head = Q.head ∧ P.tail = Q.tail ∧ P.head ≠ P.tail ∧
-        (∀ z, z ∈ P.vertices → z ∈ Q.vertices →
-          z = P.head ∨ z = P.tail) ∧
-        3 ≤ P.length + Q.length := by
-  let pred : α → Prop := fun z => z = a ∨ z ∉ q.vertices
-  let r := p.vertices.dropWhile pred hwit
-  let b := firstRejoinVertex a p q hwit
-  have hbP : b ∈ p.vertices :=
-    VertexSeq.dropWhile_subset p.vertices pred hwit _ (VertexSeq.head_mem r)
-  have hbNot : ¬pred b := VertexSeq.not_pred_head_dropWhile p.vertices pred hwit
-  have hba : b ≠ a := fun h => hbNot (Or.inl h)
-  have hbQ : b ∈ q.vertices := by by_contra h; exact hbNot (Or.inr h)
-  refine ⟨hbP, hbQ, ?_⟩
-  let P := p.prefixUntil b hbP
-  let Q := q.prefixUntil b hbQ
-  have hPhead : P.head = a := (VertexSeq.head_prefixUntil p.vertices b hbP).trans hpa
-  have hQhead : Q.head = a := (VertexSeq.head_prefixUntil q.vertices b hbQ).trans hqa
-  have hPtail : P.tail = b := VertexSeq.tail_prefixUntil p.vertices b hbP
-  have hQtail : Q.tail = b := VertexSeq.tail_prefixUntil q.vertices b hbQ
-  have hPpos : P.length ≠ 0 :=
-    VertexSeq.length_prefixUntil_ne_zero p.vertices b hbP (by grind)
-  have hQpos : Q.length ≠ 0 :=
-    VertexSeq.length_prefixUntil_ne_zero q.vertices b hbQ (by grind)
-  refine ⟨hPhead.trans hQhead.symm, hPtail.trans hQtail.symm,
-    fun heq => hba (hPtail.symm.trans (heq.symm.trans hPhead)), ?_, ?_⟩
-  · intro z hzP hzQ
-    have hzQ' : z ∈ q.vertices := VertexSeq.prefixUntil_subset q.vertices b hbQ z hzQ
-    have hzFirst := VertexSeq.eq_head_dropWhile_or_pred_of_mem_prefixUntil
-      p.vertices pred hwit (z := z) (by simpa [P, b, r, pred] using hzP)
-    rcases hzFirst with hzb | hza | hznot
-    · exact Or.inr (hzb.trans hPtail.symm)
-    · exact Or.inl (hza.trans hPhead.symm)
-    · exact (hznot hzQ').elim
-  · by_contra h3
-    change ¬3 ≤ P.length + Q.length at h3
-    have hP1 : P.length = 1 := by omega
-    have hQ1 : Q.length = 1 := by omega
-    exact hsecond
-      ((VertexSeq.head_dropHead_prefixUntil_of_length_one p.vertices b hbP hP1).trans
-        (VertexSeq.head_dropHead_prefixUntil_of_length_one q.vertices b hbQ hQ1).symm)
+/-- The data shared by every step of the `ofTwoPaths` construction: the
+divergence vertex `a` with the facts about the two suffixes `p.suffixFrom a`,
+`q.suffixFrom a` that the later steps consume. Bundled once (via `divergenceData`)
+so no helper re-derives `divergenceVertex_spec`. -/
+private structure DivergenceData [DecidableEq α] (p q : SimplePath α) where
+  vertex : α
+  mem_left : vertex ∈ p.vertices
+  mem_right : vertex ∈ q.vertices
+  head_left : (p.suffixFrom vertex mem_left).head = vertex
+  head_right : (q.suffixFrom vertex mem_right).head = vertex
+  tail_eq : (p.suffixFrom vertex mem_left).tail = (q.suffixFrom vertex mem_right).tail
+  length_left : (p.suffixFrom vertex mem_left).length ≠ 0
+  length_right : (q.suffixFrom vertex mem_right).length ≠ 0
+  second_ne : (p.suffixFrom vertex mem_left).vertices.dropHead.head ≠
+    (q.suffixFrom vertex mem_right).vertices.dropHead.head
 
-private lemma firstRejoinVertex_mem_left [DecidableEq α] (a : α)
-    (p q : SimplePath α)
-    (hwit : ∃ z ∈ p.vertices.toList, ¬(z = a ∨ z ∉ q.vertices)) :
-    firstRejoinVertex a p q hwit ∈ p.vertices := by
-  exact VertexSeq.dropWhile_subset p.vertices (fun z => z = a ∨ z ∉ q.vertices)
-    hwit _ (VertexSeq.head_mem _)
-
-private lemma firstRejoinVertex_mem_right [DecidableEq α] (a : α)
-    (p q : SimplePath α)
-    (hwit : ∃ z ∈ p.vertices.toList, ¬(z = a ∨ z ∉ q.vertices)) :
-    firstRejoinVertex a p q hwit ∈ q.vertices := by
-  have hnot := VertexSeq.not_pred_head_dropWhile p.vertices
-    (fun z => z = a ∨ z ∉ q.vertices) hwit
-  by_contra h
-  exact hnot (Or.inr h)
-
-private structure OfTwoPathsData (p q : SimplePath α) where
-  cycle : SimpleCycle α
-  length_le : cycle.length ≤ p.length + q.length
-  head_mem_left : cycle.head ∈ p.vertices
-  edges_subset : ∀ e ∈ cycle.edges, e ∈ p.edges ∨ e ∈ q.edges
-
-private def buildOfTwoPaths [DecidableEq α] (p q : SimplePath α)
+/-- Extract the divergence context from two distinct paths with common endpoints. -/
+private def divergenceData [DecidableEq α] (p q : SimplePath α)
     (hhead : p.head = q.head) (htail : p.tail = q.tail)
-    (hne : p.vertices ≠ q.vertices) : OfTwoPathsData p q := by
+    (hne : p.vertices ≠ q.vertices) : DivergenceData p q :=
   let a := divergenceVertex p q hhead
   let hap := divergenceVertex_mem_left p q hhead htail hne
   let haq := divergenceVertex_mem_right p q hhead htail hne
-  let p' := p.suffixFrom a hap
-  let q' := q.suffixFrom a haq
-  have hd : p'.head = a ∧ q'.head = a ∧ p'.tail = q'.tail ∧
-      p'.length ≠ 0 ∧ q'.length ≠ 0 ∧ a ≠ p'.tail ∧
-      p'.vertices.dropHead.head ≠ q'.vertices.dropHead.head := by
+  have hspec : (p.suffixFrom a hap).head = a ∧ (q.suffixFrom a haq).head = a ∧
+      (p.suffixFrom a hap).tail = (q.suffixFrom a haq).tail ∧
+      (p.suffixFrom a hap).length ≠ 0 ∧ (q.suffixFrom a haq).length ≠ 0 ∧
+      a ≠ (p.suffixFrom a hap).tail ∧
+      (p.suffixFrom a hap).vertices.dropHead.head ≠
+        (q.suffixFrom a haq).vertices.dropHead.head := by
     obtain ⟨hap', haq', h⟩ := divergenceVertex_spec p q hhead htail hne
-    simpa [a, p', q'] using h
-  obtain ⟨hpHead, hqHead, hpTail, -, -, haTail, hsecond⟩ := hd
-  have hwit : ∃ z ∈ p'.vertices.toList, ¬(z = a ∨ z ∉ q'.vertices) :=
-    ⟨p'.tail, VertexSeq.tail_mem p'.vertices, by
-      rintro (hta | htq)
-      · exact haTail hta.symm
-      · exact htq (hpTail.symm ▸ VertexSeq.tail_mem q'.vertices)⟩
-  let b := firstRejoinVertex a p' q' hwit
-  let hbP := firstRejoinVertex_mem_left a p' q' hwit
-  let hbQ := firstRejoinVertex_mem_right a p' q' hwit
-  let P := p'.prefixUntil b hbP
-  let Q := q'.prefixUntil b hbQ
-  have hr : P.head = Q.head ∧ P.tail = Q.tail ∧ P.head ≠ P.tail ∧
-      (∀ z, z ∈ P.vertices → z ∈ Q.vertices →
-        z = P.head ∨ z = P.tail) ∧ 3 ≤ P.length + Q.length := by
-    obtain ⟨hbP', hbQ', h⟩ :=
-      firstRejoinVertex_spec a p' q' hpHead hqHead hsecond hwit
-    simpa [b, P, Q] using h
-  obtain ⟨hPQHead, hPQTail, hPNe, hint, hlen⟩ := hr
-  refine ⟨ofInternallyDisjointPaths P Q hPQHead hPQTail hPNe hint hlen, ?_, ?_, ?_⟩
-  · change (ofInternallyDisjointPaths P Q hPQHead hPQTail hPNe hint hlen).length ≤ _
-    rw [length_ofInternallyDisjointPaths]
-    have hPle : P.length ≤ p'.length := VertexSeq.length_prefixUntil_le p'.vertices b hbP
-    have hQle : Q.length ≤ q'.length := VertexSeq.length_prefixUntil_le q'.vertices b hbQ
-    have hp'le : p'.length ≤ p.length := VertexSeq.length_suffixFrom_le p.vertices a hap
-    have hq'le : q'.length ≤ q.length := VertexSeq.length_suffixFrom_le q.vertices a haq
+    simpa [a, hap, haq] using h
+  ⟨a, hap, haq, hspec.1, hspec.2.1, hspec.2.2.1, hspec.2.2.2.1, hspec.2.2.2.2.1,
+    hspec.2.2.2.2.2.2⟩
+
+/-! #### The interior walk -/
+
+/-- The interior of the closed walk `p' ⋯ (q')⁻¹`: drop both copies of the
+divergence vertex. Its endpoints are the two distinct vertices right after the
+divergence vertex on `p` and on `q`. -/
+private def interiorWalk [DecidableEq α] {p q : SimplePath α}
+    (d : DivergenceData p q) : SimpleWalk α :=
+  ((p.suffixFrom d.vertex d.mem_left).val.glue
+      (q.suffixFrom d.vertex d.mem_right).val.reverse
+      (tail_eq_head_reverse_of_tail_eq _ _ d.tail_eq)).dropHead.dropTail
+
+/-- The interior walk starts at the vertex right after the divergence vertex on `p`. -/
+private lemma head_interiorWalk [DecidableEq α] {p q : SimplePath α}
+    (d : DivergenceData p q) :
+    (interiorWalk d).head = (p.suffixFrom d.vertex d.mem_left).vertices.dropHead.head := by
+  have hpPos := d.length_left
+  change ((p.suffixFrom d.vertex d.mem_left).val.glue
+    (q.suffixFrom d.vertex d.mem_right).val.reverse _).val.dropHead.dropTail.head = _
+  rw [VertexSeq.head_dropTail]
+  exact SimpleWalk.head_dropHead_glue _ _ _ hpPos
+
+/-- The interior walk ends at the vertex right after the divergence vertex on `q`. -/
+private lemma tail_interiorWalk [DecidableEq α] {p q : SimplePath α}
+    (d : DivergenceData p q) :
+    (interiorWalk d).tail = (q.suffixFrom d.vertex d.mem_right).vertices.dropHead.head := by
+  have hpPos := d.length_left
+  have hqPos := d.length_right
+  set W : SimpleWalk α := (p.suffixFrom d.vertex d.mem_left).val.glue
+    (q.suffixFrom d.vertex d.mem_right).val.reverse
+    (tail_eq_head_reverse_of_tail_eq _ _ d.tail_eq) with hW
+  have hWLen : W.length = (p.suffixFrom d.vertex d.mem_left).length +
+      (q.suffixFrom d.vertex d.mem_right).length := by rw [hW]; simp
+  have hW2 : 2 ≤ W.val.length := by
+    have h2 : 2 ≤ W.length := by omega
+    simpa using h2
+  change W.val.dropHead.dropTail.tail = (q.suffixFrom d.vertex d.mem_right).vertices.dropHead.head
+  rw [VertexSeq.tail_dropTail_dropHead _ hW2]
+  simp only [hW, SimpleWalk.glue, dif_neg hpPos]
+  rw [VertexSeq.dropTail_append _ _ (by simpa using hqPos), VertexSeq.tail_append]
+  change (q.suffixFrom d.vertex d.mem_right).vertices.reverse.dropTail.tail =
+    (q.suffixFrom d.vertex d.mem_right).vertices.dropHead.head
+  rw [VertexSeq.dropTail_reverse, VertexSeq.tail_reverse]
+
+/-- The interior walk is two edges shorter than the closed walk. -/
+private lemma length_interiorWalk [DecidableEq α] {p q : SimplePath α}
+    (d : DivergenceData p q) :
+    (interiorWalk d).length + 2 =
+      (p.suffixFrom d.vertex d.mem_left).length + (q.suffixFrom d.vertex d.mem_right).length := by
+  have hpPos := d.length_left
+  have hqPos := d.length_right
+  set W : SimpleWalk α := (p.suffixFrom d.vertex d.mem_left).val.glue
+    (q.suffixFrom d.vertex d.mem_right).val.reverse
+    (tail_eq_head_reverse_of_tail_eq _ _ d.tail_eq) with hW
+  have hWLen : W.length = (p.suffixFrom d.vertex d.mem_left).length +
+      (q.suffixFrom d.vertex d.mem_right).length := by rw [hW]; simp
+  have h2v : 2 ≤ W.val.length := by
+    have h2 : 2 ≤ W.length := by omega
+    simpa using h2
+  have hWPos : W.val.length ≠ 0 := by omega
+  have hDropHead := VertexSeq.length_dropHead_succ W.val hWPos
+  have hDropHeadPos : W.val.dropHead.length ≠ 0 := by omega
+  have hDropTail := VertexSeq.length_dropTail_succ W.val.dropHead hDropHeadPos
+  have hIW : (interiorWalk d).length + 2 = W.length := by
+    change W.val.dropHead.dropTail.length + 2 = W.val.length
     omega
-  · rw [head_ofInternallyDisjointPaths]
-    exact VertexSeq.suffixFrom_subset p.vertices a hap _
-      (VertexSeq.prefixUntil_subset p'.vertices b hbP _ (VertexSeq.head_mem P.vertices))
-  · intro e he
-    rcases edges_ofInternallyDisjointPaths_subset P Q hPQHead hPQTail hPNe hint hlen he
-      with heP | heQ
-    · exact Or.inl (SimplePath.edges_suffixFrom_subset p a hap
-        (SimplePath.edges_prefixUntil_subset p' b hbP heP))
-    · exact Or.inr (SimplePath.edges_suffixFrom_subset q a haq
-        (SimplePath.edges_prefixUntil_subset q' b hbQ heQ))
+  omega
+
+/-- The divergence vertex does not lie in the interior walk: it occurs in the
+closed walk only at the two endpoints, both of which were dropped. -/
+private lemma not_mem_interiorWalk [DecidableEq α] {p q : SimplePath α}
+    (d : DivergenceData p q) : d.vertex ∉ (interiorWalk d).val := by
+  have hpPos := d.length_left
+  have hqPos := d.length_right
+  have hpHead := d.head_left
+  have hqHead := d.head_right
+  set p' := p.suffixFrom d.vertex d.mem_left with hp'
+  set q' := q.suffixFrom d.vertex d.mem_right with hq'
+  have hqNot : d.vertex ∉ q'.vertices.reverse.dropTail := by
+    simpa [hqHead] using VertexSeq.tail_not_mem_dropTail_of_nodup q'.vertices.reverse
+      (VertexSeq.nodup_reverse q'.vertices q'.nodup) (by simpa using hqPos)
+  intro ha
+  change d.vertex ∈ ((p'.val.glue q'.val.reverse
+    (tail_eq_head_reverse_of_tail_eq _ _ d.tail_eq)).dropHead.dropTail).val at ha
+  simp only [SimpleWalk.glue, dif_neg hpPos] at ha
+  by_cases hp1 : p'.length = 1
+  · have hpDropEq : p'.vertices.dropTail = VertexSeq.singleton d.vertex := by
+      have hz : p'.vertices.dropTail.length = 0 := by
+        have := VertexSeq.length_dropTail_succ p'.vertices hpPos
+        change p'.vertices.length = 1 at hp1; omega
+      rw [VertexSeq.eq_singleton_of_length_zero _ hz]; simp [hpHead]
+    change d.vertex ∈
+      (p'.vertices.dropTail.append q'.vertices.reverse).dropHead.dropTail at ha
+    rw [hpDropEq, VertexSeq.dropHead_singleton_append] at ha
+    exact hqNot ha
+  · have hpNot : d.vertex ∉ p'.vertices.dropTail.dropHead := by
+      have hpos : p'.vertices.dropTail.length ≠ 0 := by
+        have := VertexSeq.length_dropTail_succ p'.vertices hpPos
+        change p'.vertices.length ≠ 1 at hp1; omega
+      simpa [hpHead] using VertexSeq.head_not_mem_dropHead_of_nodup p'.vertices.dropTail
+        (VertexSeq.nodup_dropTail p'.vertices p'.nodup) hpos
+    rcases VertexSeq.mem_dropTail_dropHead_append _ _ _ ha with haP | haQ
+    · exact hpNot haP
+    · exact hqNot haQ
+
+/-- Every edge of the interior walk is traversed by one of the two paths. -/
+private lemma edges_interiorWalk_subset [DecidableEq α] {p q : SimplePath α}
+    (d : DivergenceData p q) {e : Sym2 α} (he : e ∈ (interiorWalk d).edges) :
+    e ∈ p.edges ∨ e ∈ q.edges := by
+  set p' := p.suffixFrom d.vertex d.mem_left with hp'
+  set q' := q.suffixFrom d.vertex d.mem_right with hq'
+  set W : SimpleWalk α := p'.val.glue q'.val.reverse
+    (tail_eq_head_reverse_of_tail_eq _ _ d.tail_eq) with hW
+  change e ∈ (W.dropHead.dropTail).edges at he
+  have heW : e ∈ W.edges :=
+    SimpleWalk.edges_dropHead_subset W (SimpleWalk.edges_dropTail_subset W.dropHead he)
+  rcases (show e ∈ p'.edges ∨ e ∈ q'.val.reverse.edges by
+    simpa [hW, SimpleWalk.edges_glue] using heW) with heP | heQ
+  · exact Or.inl (SimplePath.edges_suffixFrom_subset p d.vertex d.mem_left heP)
+  · exact Or.inr (SimplePath.edges_suffixFrom_subset q d.vertex d.mem_right (by simpa using heQ))
+
+/-! #### The loop-erased interior -/
+
+/-- Loop-erase the interior walk to a simple path running between the two
+vertices adjacent to the divergence vertex. -/
+private def erasedInterior [DecidableEq α] {p q : SimplePath α}
+    (d : DivergenceData p q) : SimplePath α :=
+  SimplePath.cycleErase (interiorWalk d)
+
+private lemma head_erasedInterior [DecidableEq α] {p q : SimplePath α}
+    (d : DivergenceData p q) :
+    (erasedInterior d).head = (p.suffixFrom d.vertex d.mem_left).vertices.dropHead.head := by
+  change (interiorWalk d).val.cycleErase.head = _
+  exact (VertexSeq.head_cycleErase (interiorWalk d).val).trans (head_interiorWalk d)
+
+private lemma tail_erasedInterior [DecidableEq α] {p q : SimplePath α}
+    (d : DivergenceData p q) :
+    (erasedInterior d).tail = (q.suffixFrom d.vertex d.mem_right).vertices.dropHead.head := by
+  change (interiorWalk d).val.cycleErase.tail = _
+  exact (VertexSeq.tail_cycleErase (interiorWalk d).val).trans (tail_interiorWalk d)
+
+/-- The loop-erased interior is non-trivial: its endpoints are distinct. -/
+private lemma length_erasedInterior_ne_zero [DecidableEq α] {p q : SimplePath α}
+    (d : DivergenceData p q) : (erasedInterior d).length ≠ 0 := by
+  intro hzero
+  exact d.second_ne ((head_erasedInterior d).symm.trans
+    ((VertexSeq.head_eq_tail_of_length_zero _ hzero).trans (tail_erasedInterior d)))
+
+private lemma length_erasedInterior_le [DecidableEq α] {p q : SimplePath α}
+    (d : DivergenceData p q) : (erasedInterior d).length ≤ (interiorWalk d).length :=
+  VertexSeq.length_cycleErase_le (interiorWalk d).val
+
+/-- The divergence vertex is disjoint from the loop-erased interior. -/
+private lemma not_mem_erasedInterior [DecidableEq α] {p q : SimplePath α}
+    (d : DivergenceData p q) : d.vertex ∉ (erasedInterior d).vertices := by
+  intro haT
+  exact not_mem_interiorWalk d (VertexSeq.cycleErase_subset (interiorWalk d).val d.vertex haT)
+
+private lemma edges_erasedInterior_subset [DecidableEq α] {p q : SimplePath α}
+    (d : DivergenceData p q) {e : Sym2 α} (he : e ∈ (erasedInterior d).edges) :
+    e ∈ p.edges ∨ e ∈ q.edges :=
+  edges_interiorWalk_subset d (SimpleWalk.edges_cycleErase_subset (interiorWalk d) he)
+
+/-! #### Prepending the divergence vertex -/
+
+/-- Prepend the divergence vertex to the loop-erased interior. The vertex is
+disjoint from that interior, so the result is still a simple path. -/
+private def pathOfTwoPaths [DecidableEq α] {p q : SimplePath α}
+    (d : DivergenceData p q) : SimplePath α :=
+  (SimplePath.singleton d.vertex).append (erasedInterior d) (by
+    intro z hzA hzT
+    change z ∈ VertexSeq.singleton d.vertex at hzA
+    have hz : z = d.vertex := VertexSeq.mem_singleton.mp hzA
+    subst z
+    exact not_mem_erasedInterior d hzT)
+
+private lemma head_pathOfTwoPaths [DecidableEq α] {p q : SimplePath α}
+    (d : DivergenceData p q) : (pathOfTwoPaths d).head = d.vertex := by
+  simp [pathOfTwoPaths]
+
+private lemma tail_pathOfTwoPaths [DecidableEq α] {p q : SimplePath α}
+    (d : DivergenceData p q) : (pathOfTwoPaths d).tail = (erasedInterior d).tail := by
+  simp [pathOfTwoPaths]
+
+private lemma length_pathOfTwoPaths [DecidableEq α] {p q : SimplePath α}
+    (d : DivergenceData p q) : (pathOfTwoPaths d).length = (erasedInterior d).length + 1 := by
+  simp [pathOfTwoPaths, VertexSeq.length_append]
+
+private lemma two_le_length_pathOfTwoPaths [DecidableEq α] {p q : SimplePath α}
+    (d : DivergenceData p q) : 2 ≤ (pathOfTwoPaths d).length := by
+  have h := length_pathOfTwoPaths d
+  have := length_erasedInterior_ne_zero d
+  omega
+
+/-- Every edge of the prepended path comes from one of the two input paths: the
+joining edge is the first edge of `p`'s suffix; the rest lie in the interior. -/
+private lemma edges_pathOfTwoPaths_subset [DecidableEq α] {p q : SimplePath α}
+    (d : DivergenceData p q) {e : Sym2 α} (he : e ∈ (pathOfTwoPaths d).edges) :
+    e ∈ p.edges ∨ e ∈ q.edges := by
+  have hpPos := d.length_left
+  have hpHead := d.head_left
+  have heS' : e = s(d.vertex, (erasedInterior d).head) ∨ e ∈ (erasedInterior d).edges := by
+    simpa [pathOfTwoPaths, SimplePath.edges_append] using he
+  rcases heS' with heJoin | heT
+  · subst e
+    refine Or.inl (SimplePath.edges_suffixFrom_subset p d.vertex d.mem_left ?_)
+    have hfirst := VertexSeq.first_edge_mem (p.suffixFrom d.vertex d.mem_left).vertices hpPos
+    simpa [hpHead, head_erasedInterior d] using hfirst
+  · exact edges_erasedInterior_subset d heT
 
 /-- Two distinct simple paths with the same endpoints determine a simple cycle
-by taking the segment between their first divergence and first reconvergence. -/
+by loop-erasing the interior of the closed walk formed after their first
+divergence, then restoring the two incident edges at that divergence. -/
 def ofTwoPaths [DecidableEq α] (p q : SimplePath α)
     (hhead : p.head = q.head) (htail : p.tail = q.tail)
     (hne : p.vertices ≠ q.vertices) : SimpleCycle α :=
-  (buildOfTwoPaths p q hhead htail hne).cycle
+  ofPathClosing (pathOfTwoPaths (divergenceData p q hhead htail hne))
+    (two_le_length_pathOfTwoPaths (divergenceData p q hhead htail hne))
 
 /-- The cycle selected from two distinct paths is no longer than the two paths
 combined. -/
 lemma length_ofTwoPaths [DecidableEq α] (p q : SimplePath α)
     (hhead : p.head = q.head) (htail : p.tail = q.tail)
     (hne : p.vertices ≠ q.vertices) :
-    (ofTwoPaths p q hhead htail hne).length ≤ p.length + q.length :=
-  (buildOfTwoPaths p q hhead htail hne).length_le
+    (ofTwoPaths p q hhead htail hne).length ≤ p.length + q.length := by
+  set d := divergenceData p q hhead htail hne with hd
+  have hclose : (ofTwoPaths p q hhead htail hne).length = (pathOfTwoPaths d).length + 1 := by
+    unfold ofTwoPaths; rw [length_ofPathClosing]
+  have hpath := length_pathOfTwoPaths d
+  have herase := length_erasedInterior_le d
+  have hint := length_interiorWalk d
+  have hple : (p.suffixFrom d.vertex d.mem_left).length ≤ p.length :=
+    VertexSeq.length_suffixFrom_le p.vertices d.vertex d.mem_left
+  have hqle : (q.suffixFrom d.vertex d.mem_right).length ≤ q.length :=
+    VertexSeq.length_suffixFrom_le q.vertices d.vertex d.mem_right
+  omega
 
 /-- The selected cycle is rooted at a vertex of the first path. -/
 lemma head_ofTwoPaths_mem_left [DecidableEq α] (p q : SimplePath α)
     (hhead : p.head = q.head) (htail : p.tail = q.tail)
     (hne : p.vertices ≠ q.vertices) :
-    (ofTwoPaths p q hhead htail hne).head ∈ p.vertices :=
-  (buildOfTwoPaths p q hhead htail hne).head_mem_left
+    (ofTwoPaths p q hhead htail hne).head ∈ p.vertices := by
+  have hh : (ofTwoPaths p q hhead htail hne).head =
+      (divergenceData p q hhead htail hne).vertex := by
+    unfold ofTwoPaths; rw [head_ofPathClosing, head_pathOfTwoPaths]
+  rw [hh]
+  exact (divergenceData p q hhead htail hne).mem_left
 
 /-- Every edge of the selected cycle comes from one of the two input paths. -/
 lemma edges_ofTwoPaths_subset [DecidableEq α] (p q : SimplePath α)
     (hhead : p.head = q.head) (htail : p.tail = q.tail)
     (hne : p.vertices ≠ q.vertices) {e : Sym2 α}
     (he : e ∈ (ofTwoPaths p q hhead htail hne).edges) :
-    e ∈ p.edges ∨ e ∈ q.edges :=
-  (buildOfTwoPaths p q hhead htail hne).edges_subset e he
+    e ∈ p.edges ∨ e ∈ q.edges := by
+  unfold ofTwoPaths at he
+  set d := divergenceData p q hhead htail hne with hd
+  rw [edges_ofPathClosing, List.mem_append, List.mem_singleton] at he
+  rcases he with hpath | hclose
+  · exact edges_pathOfTwoPaths_subset d hpath
+  · subst e
+    refine Or.inr (SimplePath.edges_suffixFrom_subset q d.vertex d.mem_right ?_)
+    have hkey : s((pathOfTwoPaths d).tail, (pathOfTwoPaths d).head) ∈
+        (q.suffixFrom d.vertex d.mem_right).edges := by
+      have hH : (pathOfTwoPaths d).head = d.vertex := head_pathOfTwoPaths d
+      have hT : (pathOfTwoPaths d).tail =
+          (q.suffixFrom d.vertex d.mem_right).vertices.dropHead.head := by
+        rw [tail_pathOfTwoPaths]; exact tail_erasedInterior d
+      simpa [hH, hT, d.head_right, Sym2.eq_swap] using
+        VertexSeq.first_edge_mem (q.suffixFrom d.vertex d.mem_right).vertices d.length_right
+    exact hkey
 
 /-! ## reverse -/
 
@@ -534,18 +596,16 @@ private lemma isCycle_reroot_glue [DecidableEq α] (c : SimpleCycle α) (u : α)
     SimpleWalk.IsCycle
       ((c.val.suffixFrom u hu).glue (c.val.prefixUntil u hu)
         (tail_suffixFrom_eq_head_prefixUntil c u hu)) := by
-  have hsplit := VertexSeq.dropTail_prefixUntil_append_suffixFrom
-    (vertices c) u hu hhead
   let pre : VertexSeq α := (vertices c).prefixUntil u hu
   let suf : VertexSeq α := (vertices c).suffixFrom u hu
   have hpre_pos : pre.length ≠ 0 := fun hz =>
     hhead (by simpa [pre] using (VertexSeq.head_eq_tail_of_length_zero pre hz).symm)
-  have hsuf_pos : suf.length ≠ 0 := by
-    intro hz
-    have huTail : u = (vertices c).tail := by
-      simpa [suf] using VertexSeq.head_eq_tail_of_length_zero suf hz
-    exact hhead (huTail.trans (closed c).symm)
-  have hsplit' : pre.dropTail.append suf = vertices c := by simpa [pre, suf] using hsplit
+  have hsuf_pos : suf.length ≠ 0 := fun hz => hhead
+    ((show u = (vertices c).tail by
+      simpa [suf] using VertexSeq.head_eq_tail_of_length_zero suf hz).trans (closed c).symm)
+  have hsplit' : pre.dropTail.append suf = vertices c := by
+    simpa [pre, suf] using
+      VertexSeq.dropTail_prefixUntil_append_suffixFrom (vertices c) u hu hhead
   have hleft : (pre.dropTail.append suf.dropTail).nodup := by
     rw [← VertexSeq.dropTail_append pre.dropTail suf hsuf_pos,
       congrArg VertexSeq.dropTail hsplit']

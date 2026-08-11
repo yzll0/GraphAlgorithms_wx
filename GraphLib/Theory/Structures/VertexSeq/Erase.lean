@@ -85,10 +85,20 @@ between its two occurrences. The result satisfies `nodup`. -/
     grind [length_prefixUntil_le]
   · simp [length]
 
+/-- `cycleErase` preserves the head vertex. -/
+@[grind =] lemma head_cycleErase [DecidableEq α] (w : VertexSeq α) :
+    w.cycleErase.head = w.head := by
+  fun_induction cycleErase w <;> grind [head_prefixUntil]
+
 /-- `cycleErase` preserves the tail vertex. -/
 @[grind =] lemma tail_cycleErase [DecidableEq α] (w : VertexSeq α) :
     w.cycleErase.tail = w.tail := by
   fun_induction cycleErase w <;> grind [tail_prefixUntil]
+
+/-- Cycle erasure never increases the number of traversed edges. -/
+lemma length_cycleErase_le [DecidableEq α] (w : VertexSeq α) :
+    w.cycleErase.length ≤ w.length := by
+  fun_induction cycleErase w <;> grind [length_prefixUntil_le]
 
 /-- Membership in `cycleErase` implies membership in the original sequence. -/
 @[grind] lemma cycleErase_subset [DecidableEq α] (w : VertexSeq α) :

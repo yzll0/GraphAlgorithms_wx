@@ -185,6 +185,11 @@ lemma head_dropHead_cons (w : VertexSeq α) (x : α)
     w.dropTail.length + 1 = w.length := by
   cases w <;> grind
 
+/-- For a non-trivial sequence, dropping the head drops exactly one edge. -/
+@[simp, grind =] lemma length_dropHead_succ (w : VertexSeq α) (h : w.length ≠ 0) :
+    w.dropHead.length + 1 = w.length := by
+  fun_induction dropHead w <;> grind [length]
+
 /-- A `dropHead` result is contained in the original sequence. -/
 @[grind] lemma dropHead_subset (w : VertexSeq α) : w.dropHead ⊆ w := by
   intro v hv
@@ -200,6 +205,12 @@ the original tail. -/
 lemma head_dropHead_eq_tail_of_length_one (w : VertexSeq α)
     (h : w.length = 1) : w.dropHead.head = w.tail := by
   cases w <;> grind [eq_singleton_of_length_zero]
+
+/-- Dropping the head does not change the penultimate vertex of a sequence of
+length at least two. -/
+lemma tail_dropTail_dropHead (w : VertexSeq α) (h : 2 ≤ w.length) :
+    w.dropHead.dropTail.tail = w.dropTail.tail := by
+  fun_induction dropHead w <;> grind [dropTail, tail_dropHead, length]
 
 /-! ## Head and last of the underlying list -/
 

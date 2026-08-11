@@ -84,24 +84,6 @@ lemma ofPathClosing (G : SimpleGraph α) {p : SimplePath α}
   change G.IsVertexSeqIn (VertexSeq.cons (SimplePath.vertices p) (SimplePath.head p))
   exact IsVertexSeqIn.cons (SimplePath.vertices p) (SimplePath.head p) hp hclose
 
-/-- Two realized internally disjoint paths with the same endpoints form a
-realized simple cycle. -/
-lemma ofInternallyDisjointPaths (G : SimpleGraph α) {P Q : SimplePath α}
-    (hP : G.IsSimplePathIn P) (hQ : G.IsSimplePathIn Q)
-    (hhead : P.head = Q.head) (htail : P.tail = Q.tail)
-    (hab : P.head ≠ P.tail)
-    (hint : ∀ z, z ∈ P.vertices → z ∈ Q.vertices →
-      z = P.head ∨ z = P.tail)
-    (hlen : 3 ≤ P.length + Q.length) :
-    G.IsSimpleCycleIn
-      (SimpleCycle.ofInternallyDisjointPaths P Q hhead htail hab hint hlen) := by
-  change G.IsSimpleWalkIn
-    (SimpleCycle.ofInternallyDisjointPaths P Q hhead htail hab hint hlen).val
-  unfold SimpleCycle.ofInternallyDisjointPaths
-  apply IsSimpleWalkIn.glue G hP (IsSimpleWalkIn.reverse G hQ)
-  change P.vertices.tail = Q.vertices.reverse.head
-  simpa only [VertexSeq.head_reverse] using htail
-
 /-- Two distinct realized simple paths with the same endpoints determine a
 realized simple cycle. -/
 lemma ofTwoPaths [DecidableEq α] (G : SimpleGraph α) {p q : SimplePath α}
@@ -135,7 +117,7 @@ lemma length_le_ncard_vertexSet (G : SimpleGraph α) (hV : V(G).Finite)
 
 /-! ## Existence of a short cycle from realized paths
 
-Where `ofPathClosing` / `ofInternallyDisjointPaths` / `ofTwoPaths` above are the
+Where `ofPathClosing` / `ofTwoPaths` above are the
 constructor bridges — they say *this particular* cycle is realized — the two
 lemmas here are the existence corollaries a caller actually wants: some realized
 cycle exists, and it is no longer than the paths it was built from. The length

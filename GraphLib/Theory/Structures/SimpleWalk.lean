@@ -120,6 +120,39 @@ def glue (p q : SimpleWalk α) (h : p.val.tail = q.val.head) : SimpleWalk α :=
       exact (VertexSeq.nonstalling_append p.val.dropTail q.val).2
         ⟨hpns, q.nonstalling, hjoin⟩⟩
 
+/-- Gluing preserves the head of the left walk. -/
+@[simp] lemma head_glue (p q : SimpleWalk α) (h : p.val.tail = q.val.head) :
+    (p.glue q h).head = p.head := by
+  unfold glue
+  split <;> grind [VertexSeq.head_append, VertexSeq.head_dropTail]
+
+/-- A non-trivial left walk keeps its second vertex after gluing. -/
+lemma head_dropHead_glue (p q : SimpleWalk α) (h : p.tail = q.head)
+    (hp : p.length ≠ 0) :
+    (p.glue q h).val.dropHead.head = p.val.dropHead.head := by
+  unfold glue
+  rw [dif_neg hp]
+  obtain ⟨p, hpns⟩ := p
+  cases p with
+  | singleton v => simp [VertexSeq.length] at hp
+  | cons p v =>
+      cases p <;>
+        grind [VertexSeq.head_dropHead_append, VertexSeq.head_dropHead_singleton_append,
+          VertexSeq.dropHead, VertexSeq.head, VertexSeq.length, VertexSeq.append]
+
+/-- Gluing preserves the tail of the right walk. -/
+@[simp] lemma tail_glue (p q : SimpleWalk α) (h : p.val.tail = q.val.head) :
+    (p.glue q h).tail = q.tail := by
+  unfold glue
+  split <;> grind [VertexSeq.tail_append]
+
+/-- Gluing at a shared vertex adds the lengths without an extra joining edge. -/
+@[simp] lemma length_glue (p q : SimpleWalk α) (h : p.val.tail = q.val.head) :
+    (p.glue q h).length = p.length + q.length := by
+  unfold glue
+  split <;>
+    grind [VertexSeq.length_append, VertexSeq.length_dropTail_succ]
+
 /-! ## reverse -/
 
 /-- Reverse a simple walk: the head becomes the tail and vice versa. Reversal

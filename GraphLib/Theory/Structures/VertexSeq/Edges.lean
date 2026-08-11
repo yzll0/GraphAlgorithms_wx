@@ -89,6 +89,22 @@ dropped-tail sequence plus the final edge. -/
   | singleton v => exact (h rfl).elim
   | cons w v => rfl
 
+/-- For a non-trivial sequence, the traversed edges are the first edge followed
+by the edges of the dropped-head sequence. -/
+lemma edges_eq_cons_dropHead (w : VertexSeq α) (h : w.length ≠ 0) :
+    w.edges = s(w.head, w.dropHead.head) :: w.dropHead.edges := by
+  induction w with
+  | singleton v => exact (h rfl).elim
+  | cons w v ih =>
+      cases w <;>
+        grind [edges_cons, dropHead, head, length]
+
+/-- The first edge of a non-trivial sequence is traversed by the sequence. -/
+lemma first_edge_mem (w : VertexSeq α) (h : w.length ≠ 0) :
+    s(w.head, w.dropHead.head) ∈ w.edges := by
+  rw [edges_eq_cons_dropHead w h]
+  simp
+
 /-- The number of traversed arcs equals `length` (one less than the number of
 vertices). -/
 @[simp, grind =] lemma length_arcs (w : VertexSeq α) :
@@ -112,6 +128,16 @@ dropped-tail sequence plus the final arc. -/
   cases w with
   | singleton v => exact (h rfl).elim
   | cons w v => rfl
+
+/-- For a non-trivial sequence, the traversed arcs are the first arc followed
+by the arcs of the dropped-head sequence. -/
+lemma arcs_eq_cons_dropHead (w : VertexSeq α) (h : w.length ≠ 0) :
+    w.arcs = (w.head, w.dropHead.head) :: w.dropHead.arcs := by
+  induction w with
+  | singleton v => exact (h rfl).elim
+  | cons w v ih =>
+      cases w <;>
+        grind [arcs_cons, dropHead, head, length]
 
 /-! ## Endpoints -/
 

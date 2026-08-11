@@ -64,6 +64,33 @@ joining vertex contributing an extra edge). -/
     ((VertexSeq.singleton x).append p).head = x := by
   grind
 
+/-- If the left sequence is non-trivial, appending on the right preserves its
+second vertex. -/
+lemma head_dropHead_append (p q : VertexSeq α) (hp : p.length ≠ 0) :
+    (p.append q).dropHead.head = p.dropHead.head := by
+  fun_induction append p q <;>
+    grind [head_dropHead_cons, dropHead, head, length_append]
+
+/-- Dropping the head of a singleton-left append removes exactly that singleton. -/
+lemma dropHead_singleton_append (q : VertexSeq α) (u : α) :
+    ((singleton u).append q).dropHead = q := by
+  induction q with
+  | singleton v => rfl
+  | cons q v ih => cases q <;> grind [append, dropHead]
+
+/-- Dropping the head of a singleton-left append exposes the right head. -/
+lemma head_dropHead_singleton_append (q : VertexSeq α) (u : α) :
+    ((singleton u).append q).dropHead.head = q.head := by
+  rw [dropHead_singleton_append]
+
+/-- A vertex remaining after dropping both endpoints of an append comes from
+the corresponding endpoint-dropped operand. -/
+lemma mem_dropTail_dropHead_append (p q : VertexSeq α) (x : α)
+    (hx : x ∈ (p.append q).dropHead.dropTail) :
+    x ∈ p.dropHead ∨ x ∈ q.dropTail := by
+  fun_induction append p q <;>
+    grind [dropHead, dropTail, mem_cons]
+
 /-- Appending a singleton on the right yields `x` as the new tail. -/
 @[simp, grind =] lemma tail_append_singleton (p : VertexSeq α) (x : α) :
     (p.append (.singleton x)).tail = x := by
